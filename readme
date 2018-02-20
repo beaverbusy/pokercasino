@@ -1,5 +1,5 @@
 compile:
 make
 
-run:
-./lasvegas
+run: (redirecting errors to file err)
+./lasvegas 2> err
