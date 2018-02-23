@@ -1,141 +1,6 @@
-// 			Limit holdem poker bot tester
-// cards are 4 * rank + suit where rank is 0 .. 12 for deuce to ace, and suits is 0 .. 3
-// players are 0 to nBots -1
-// the blinds count as one raise
-// simplification: two 1$ blinds are taken, on turn bets become 2$.
-// if player raises more than nMaxraises, he is autofolded
-// communication files: casinoToBot<number> and botToCasino<number>
-// at start: casinoToBot is written: <hand number>D<button position>A<holecard1>B<holecard2>
-// then move is read in botToCasino. moves are either r/f/c. If error then player is autofolded
-// casinoToBot is then cleared and written the hand action in the format: (without the spaces)
-// <hand number> D <dealer button position>  P <action by all players in order from first to act, e.g. fccrf...> F <flop card 1> F <flop 2> F <flop 3> F <flop action starting with first player to act>
-// T <turn card> T <turn action> R <river card> R <river action>
-// once hand is over file handSummaryEven or Odd gets cleared, written the action string to, where the string is followed by the showdown info:
-// SA <card 1 of pl 1> B <card 2 of pl 1> A <c1 of p2> B <c2 p2> ....  W <seat of winner 1> W <winner 2> .... E
-// where E codes end of string
-// handSummaryOdd and Even : summary of last two hands
-// results : every nLogFrequency hands, the stacks of each player are concatenated to this file, use to declare winner
-#include "./omp/HandEvaluator.h"
-#include<chrono> 
-#include<thread>
-#include<memory> // smart pointers
-#include<fstream> // smart files
-#include<tuple> 
-#include<utility> // tuples
-#include<iostream>
-#include<vector>
-#include<deque>
-#include<array>
-#include <cstdlib>
-#include <ctime>
- 
-using namespace std;
-
-//Magic numbers:
-const int nBots = 4; // : number of bots
-const int nMaxRaises = 3;
-const int nRounds = 100; // number of rounds to test the bots
-const int nLogFrequency = 10; // frequency of result logs
-// time given to each bot is set in the function attend()
-const array<string, 52> eRank = {
-	"2h", "2c", "2s", "2d",
-	"3h", "3c", "3s", "3d",
-	"4h", "4c", "4s", "4d",
-	"5h", "5c", "5s", "5d",
-	"6h", "6c", "6s", "6d",
-	"7h", "7c", "7s", "7d",
-	"8h", "8c", "8s", "8d",
-	"9h", "9c", "9s", "9d",
-	"Th", "Tc", "Ts", "Td",
-	"Jh", "Jc", "Js", "Jd",
-	"Qh", "Qc", "Qs", "Qd",
-	"Kh", "Kc", "Ks", "Kd",
-	"Ah", "Ac", "As", "Ad",
-};
-
-void attend() { // time given to bots for each decision
-	std::this_thread::sleep_for(10ms);
-}
-
-class Bot; // declare first for recursive def
-class Casino {
-	public:
-		// game flow:
-		void populateTable(); // creates vector of bots
-		void shuffleDeck(); // randomly shuffles mDeck
-		void dealCards(); // tell bots their starting hands 
-		void getPreflopBets(); 
-		void getFlopBets(); 
-		void getTurnBets(); 
-		void getRiverBets(); 
-		void getWinners();
-		void payoffs(); // pay winners
-		void showdown(); // add showdown to mCurrentHand
-		void tellHandSummary(); // tells hand summary to all in even or odd file.
-		void fileHandSummary(); // tells hand summary to all in even or odd file.
-		void printHandSummary(); // tells hand summary to all in even or odd file.
-		void prepareNext(); // initialise stuff for next hand
-		// misc
-		bool tableEmpty(); // check if only one player is left, ie can go to showdown
-		
-	public: // todo make private after debug
-		vector<Bot*> mPlayers; // a queue of all the bots
-		deque<Bot*> table; // all players still in the hand
-		array<int, 52> mDeck; // shuffled deck
-		string mCurrentHand; // status of current hand
-		vector<int> mWinners; // winners among players left in hand
-		int mCounter = 0; // current hand number
-		int mButton = 0; // current button
-		int mPot = 0; // current pot
-
-		
-};
-
-class Bot {
-	public:
-		friend void Casino::printHandSummary(); // debug
-		friend void Casino::fileHandSummary(); // debug
-		void setSeat(int pos); // tell the bot his seat at table
-	       	void setHand(int handno, int button, tuple<int, int> hand); // tell the bot his holdem start hand
-		tuple<int, int> getHand();
-		void addStack(int ammount); // adds ammount to mStack
-		int getSeat(); // returns seat number
-		char getAction(); // read from file botToCasino<no>
-		void tellAction(string handStatus); // tell the bot the action so far via their file
-	private: 
-//		string 	mfileName; // socket used to talk to casino
-		tuple<int, int> mHand; // current start hand
-		int mSeat; // current seat on table
-		int mStack = 0; // current money
-};
-
-
-void Bot::setSeat(int pos){
-	mSeat = pos;
-}
-
-void Bot::setHand(int handno, int button, tuple<int, int> hand) {
-	mHand = hand;
-	ofstream fout("casinoToBot" + to_string(getSeat()), ios_base::trunc);
-	if (!fout.good()) {
-		cerr << "Error while opening output file for bot " << getSeat() << endl;
-	}
-	fout << handno << "D" << button << "A" << get<0>(hand) << "B" << get<1>(hand); // coded: hand number A card1 B card2
-}
-
-tuple<int, int> Bot::getHand() {
-	return mHand;
-}
-
-
-
-void Bot::addStack(int ammount) {
-	mStack += ammount;
-	}
-
-	
-int Bot::getSeat(){return mSeat;}
-
+#include "includes.h"
+#include "casino.h"
+#include "bot.h"
 //
 // casino methods: 
 // 
@@ -169,6 +34,10 @@ void Casino::populateTable(){
 }
 
 
+void Casino::attend() { // time given to bots for each decision
+	std::this_thread::sleep_for(kDelay);
+}
+
 
 void Casino::dealCards() {
 	for (int i = 0; i < nBots; i++) {
@@ -179,14 +48,14 @@ void Casino::dealCards() {
 
 void Casino::tellHandSummary() {
 	if (mCounter % 2 == 0) {
-		ofstream fout("handSummaryEven", ios_base::trunc);
+		ofstream fout("./botfiles/handSummaryEven", ios_base::trunc);
 		if (!fout.good()) {
 			cerr << "Error opening handSummaryEven file " << endl;
 		}
 		fout << mCurrentHand;
 	}
 	else {
-		ofstream fout("handSummaryOdd", ios_base::trunc); 
+		ofstream fout("./botfiles/handSummaryOdd", ios_base::trunc); 
 		if (!fout.good()) {
 			cerr << "Error opening handSummaryOdd file " << endl;
 		}
@@ -220,7 +89,7 @@ void Casino::prepareNext() {
 }
 
 void Bot::tellAction(string handStatus) {
-	ofstream fout("casinoToBot" + to_string(getSeat()), ios_base::trunc); 
+	ofstream fout("./botfiles/casinoToBot" + to_string(getSeat()), ios_base::trunc); 
 	if (!fout.good()) {
 		cerr << "Error while opening output file for bot " << getSeat() << endl;
 	}
@@ -281,7 +150,7 @@ void Casino::getPreflopBets() {
 }
 
 char Bot::getAction(){
-	ifstream fin("botToCasino" + to_string(getSeat()));
+	ifstream fin("./botfiles/botToCasino" + to_string(getSeat()));
 	if (!fin) {
 		cerr << "error opening file botToCasino" << getSeat()  << endl;	
 		return 'e';
@@ -317,7 +186,6 @@ void Casino::getFlopBets() {
 	int raises = 0;
 	mCurrentHand += "F"; // current hand is coded hand number + "F"
 	for (int i = 0; i < 3; i++){
-//		mCurrentHand += to_string(mDeck[2 * nBots + i]) + "F";
 		mCurrentHand += to_string(mDeck[2 * nBots + i]) + "F";
 	}
 	while (calls < nBots && table.size() > 1){
@@ -378,7 +246,6 @@ void Casino::getTurnBets() {
 	int calls = 0;
 	int raises = 0;
 	mCurrentHand += "T"; // current hand is coded hand number + "T"
-	//mCurrentHand += to_string(mDeck[2 * nBots + 3]) + "T";
 	mCurrentHand += to_string(mDeck[2 * nBots + 3]) + "T";
 	while (calls < nBots && table.size() > 1){
 		Bot* currentPlayer = table.front(); // get first element
@@ -438,7 +305,6 @@ void Casino::getRiverBets() {
 	int calls = 0;
 	int raises = 0;
 	mCurrentHand += "R"; // current hand is coded hand number + "R"
-	//mCurrentHand += to_string(mDeck[2 * nBots + 4]) + "R";
 	mCurrentHand += to_string(mDeck[2 * nBots + 4]) + "R";
 	while (calls < nBots && table.size() > 1){
 		Bot* currentPlayer = table.front(); // get first element
@@ -512,7 +378,7 @@ void Casino::payoffs() { // pay the winners
 }
 void Casino::fileHandSummary() {
 	if (mCounter % nLogFrequency == 0) {
-		ofstream fout("results", ios_base::app);
+		ofstream fout("./botfiles/results", ios_base::app);
 		if (!fout.good()) {
 			cerr << "Error while opening results file "  << endl;
 		}
@@ -536,34 +402,5 @@ void Casino::printHandSummary() {
 	}
 	cout << endl << "hand history :" << endl;
 	cout << mCurrentHand << endl;
-}
-
-
-int main()
-{
-	// initialise rand, todo use mersenne for better randomness
-	std::srand(std::time(nullptr)); 
-	Casino lasVegas;
-	lasVegas.populateTable();
-			
-	for (int r = 0; r < nRounds; r++){
-		lasVegas.shuffleDeck();
-		lasVegas.dealCards();
-		lasVegas.getPreflopBets();
-		if (!lasVegas.tableEmpty())
-			lasVegas.getFlopBets();
-		if (!lasVegas.tableEmpty())
-			lasVegas.getTurnBets();
-		if (!lasVegas.tableEmpty())
-			lasVegas.getRiverBets();
-		lasVegas.getWinners(); // get all winners
-		lasVegas.payoffs(); // pay winner
-		lasVegas.showdown(); // publish hands from all players
-		lasVegas.tellHandSummary();
-		lasVegas.printHandSummary();
-		lasVegas.fileHandSummary();
-		lasVegas.prepareNext(); // increase button, counter etc.
-	}
-
 }
 
