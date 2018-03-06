@@ -1,3 +1,28 @@
+// Limit holdem poker bot tester
+// cards are 4 * rank + suit where rank is 0 .. 12 for deuce to ace, and suits is 0 .. 3
+// players are 0 to nBots -1
+// the blinds count as one raise
+// simplification: two 1$ blinds are taken, on turn bets become 2$.
+// if player raises more than nMaxraises, he autocalls
+// communication files: casinoToBot<number> and botToCasino<number>
+// at start: casinoToBot is written: <hand number>D<button position>A<holecard1>B<holecard2>
+// then move is read in botToCasino. moves are either r/f/c. If casino can't read file then player is autofolded, with an an error log message.
+// if player raises more than nMaxraises, he is autocalling
+// casinoToBot is then cleared and written the hand action in the format: (without the spaces)
+// hands get encoded like this:
+// 99D3PccrfccF25F49F6FrccT44TrccR37RrccS2A4B12S3A8B50W2E
+// i.e.
+// <hand number> D <dealer button position> P <action by all players in order from first to act, e.g. fccrf...> F <flop card 1> F <flop 2> F <flop 3> F <flop action starting with first player to act>
+// T <turn card> T <turn action> R <river card> R <river action>
+// once hand is over file handSummaryEven or Odd gets cleared, written the action string to, where the string is followed by the showdown info:
+// S <seat number of first player left in showdown> A <card 1 of that player > B <card 2 of that player> S <seat no of second player left at showdown> A <c1 of him> B <c2 of him> .... 
+W <seat of winner 1> W <seat winner 2> .... E
+// where E codes end of string
+// handSummaryOdd and Even : summary of last two hands
+// results: every hand is output to screen.
+// stack<n> records the stack of bot no n every nLogFrequency hand, with 1 space between each value. Can be loaded in R with:
+// scan(file="stack0")
+
 compile:
 make
 

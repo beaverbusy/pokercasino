@@ -67,11 +67,10 @@ void Casino::tellHandSummary() {
 
 
 void Casino::showdown(){
-	mCurrentHand += "S";
-	for (int i = 0; i < nBots; i++) {
-		mCurrentHand += "A" + to_string(mDeck[2 * i]) + "B" + to_string(mDeck[2 * i + 1]) ;
+	for (auto winner : table) { // print the cards of all players still in the hand at showdown.
+		mCurrentHand += "S" + to_string(winner->getSeat()) + "A" + to_string(mDeck[2 * winner->getSeat()]) + "B" + to_string(mDeck[2 * winner->getSeat() + 1]) ;
 	}
-	for (auto v : mWinners) {
+	for (auto v : mWinners) { // print the hands of all winners
 		mCurrentHand += "W" + to_string(v);
 	}
 	mCurrentHand += 'E'; // end of hand
@@ -119,13 +118,14 @@ void Casino::getPreflopBets() {
 				goto foldCase;
 				break;
 			case 'c':
-				calls++;
-				table.push_back(currentPlayer); // player stays on
-				currentPlayer->addStack(vpip[currentPlayer->getSeat()] - raises);
-				mPot += raises - vpip[currentPlayer->getSeat()];
-				vpip[currentPlayer->getSeat()] = raises; // paid all so far
-				mCurrentHand += 'c'; // current player called
-				break;
+                callCase:
+                    calls++;
+                    table.push_back(currentPlayer); // player stays on
+                    currentPlayer->addStack(vpip[currentPlayer->getSeat()] - raises);
+                    mPot += raises - vpip[currentPlayer->getSeat()];
+                    vpip[currentPlayer->getSeat()] = raises; // paid all so far
+                    mCurrentHand += 'c'; // current player called
+                    break;
 			case 'f':
 				foldCase:
 					calls++;
@@ -133,7 +133,7 @@ void Casino::getPreflopBets() {
 					break;
 			case 'r':
 				if (raises > nMaxRaises){
-					goto foldCase; // the player is folded automatically
+					goto callCase; // the player is called automatically
 				}
 				else { // valid raise
 					raises++;
@@ -195,13 +195,14 @@ void Casino::getFlopBets() {
 		attend(); // let him process it
 		switch(char action = currentPlayer->getAction()) {
 			case 'c':
-				calls++;
-				table.push_back(currentPlayer); // player stays on
-				currentPlayer->addStack(vpip[currentPlayer->getSeat()] - raises);
-				mPot += raises - vpip[currentPlayer->getSeat()];
-				vpip[currentPlayer->getSeat()] = raises; // paid all so far
-				mCurrentHand += 'c'; // current player called
-				break;
+                callCase:
+                    calls++;
+                    table.push_back(currentPlayer); // player stays on
+                    currentPlayer->addStack(vpip[currentPlayer->getSeat()] - raises);
+                    mPot += raises - vpip[currentPlayer->getSeat()];
+                    vpip[currentPlayer->getSeat()] = raises; // paid all so far
+                    mCurrentHand += 'c'; // current player called
+                    break;
 			case 'f':
 				foldCase:
 					calls++;
@@ -209,7 +210,7 @@ void Casino::getFlopBets() {
 					break;
 			case 'r':
 				if (raises >  nMaxRaises){
-					goto foldCase; // the player is folded automatically
+					goto callCase; // the player is called automatically
 				}
 				else { // valid raise
 					raises++;
@@ -257,6 +258,7 @@ void Casino::getTurnBets() {
 				goto foldCase;
 				break;
 			case 'c':
+callCase:
 				calls++;
 				table.push_back(currentPlayer); // player stays on
 				currentPlayer->addStack(2 * (vpip[currentPlayer->getSeat()] - raises));
@@ -271,7 +273,7 @@ void Casino::getTurnBets() {
 					break;
 			case 'r':
 				if (raises > nMaxRaises){
-					goto foldCase; // the player is folded automatically
+					goto callCase; // the player is called automatically
 				}
 				else { // valid raise
 					raises++;
@@ -316,6 +318,7 @@ void Casino::getRiverBets() {
 				goto foldCase;
 				break;
 			case 'c':
+callCase:
 				calls++;
 				table.push_back(currentPlayer); // player stays on
 				currentPlayer->addStack(2 * (vpip[currentPlayer->getSeat()] - raises));
@@ -330,7 +333,7 @@ void Casino::getRiverBets() {
 					break;
 			case 'r':
 				if (raises > nMaxRaises){
-					goto foldCase; // the player is folded automatically
+					goto callCase; // the player is called automatically
 				}
 				else { // valid raise
 					raises++;
@@ -378,16 +381,18 @@ void Casino::payoffs() { // pay the winners
 }
 void Casino::fileHandSummary() {
 	if (mCounter % nLogFrequency == 0) {
-		ofstream fout("./botfiles/results", ios_base::app);
-		if (!fout.good()) {
-			cerr << "Error while opening results file "  << endl;
-		}
-		fout << mCurrentHand << endl;
-		for (auto v : mPlayers){
-			fout << "seat: " << v->mSeat << "  Stack: " << v->mStack  << endl;
-		}
-	}
+        for (auto v : mPlayers){
+            ofstream fout("./botfiles/stack" + to_string(v->getSeat()), ios_base::app);
+            if (!fout.good()) {
+                cerr << "Error while opening stack file number " + to_string(v->getSeat())  << endl;
+            }
+            else {
+                fout << v->mStack << " ";
+            }
+        }
+    }
 }
+
 void Casino::printHandSummary() {
 	cout << endl << "hand number: " << mCounter << " button: " << mButton << " final pot: " << mPot << " winner seats: ";
 	       for (auto p : mWinners)
